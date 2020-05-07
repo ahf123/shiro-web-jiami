@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<!-- dtd:docuemtn type definition 为当前提供约束 
+        ：标签 属性 层级 顺序 
+     Mapper文件，映射文件，替换DAO实现类
+  -->
+  <mapper namespace="com.ahf.shiro.dao.UserDao">
+     <select id="queryUserByUserName" parameterType="string" resultType="User">
+       select id,username,password,salt from t_user where username=#{username}
+     </select>
+     <insert id="insertUser" parameterType="User">
+        insert into t_user(username,password,salt)values(#{username},#{password},#{salt})
+     </insert>
+  </mapper>

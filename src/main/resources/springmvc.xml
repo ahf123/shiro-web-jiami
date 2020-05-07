@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:mvc="http://www.springframework.org/schema/mvc"
+	xmlns:context="http://www.springframework.org/schema/context"
+	xmlns:aop="http://www.springframework.org/schema/aop"
+	xsi:schemaLocation="http://www.springframework.org/schema/mvc http://www.springframework.org/schema/mvc/spring-mvc-4.3.xsd
+		http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+		http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context-4.3.xsd
+		http://www.springframework.org/schema/aop http://www.springframework.org/schema/aop/spring-aop-4.3.xsd">
+
+    <!-- 告知springmvc 哪些包中存在被注解的类 
+      use-default-filters 遇到@controller @service @Repository @Compoment 等扫描   
+    -->
+    <context:component-scan base-package="com.ahf.shiro" use-default-filters="false">
+	<!-- 只扫描 Controller注解-->
+       <context:include-filter type="annotation" expression="org.springframework.stereotype.Controller"/>
+    </context:component-scan>
+     <!--注解驱动  -->
+     <mvc:annotation-driven>
+     
+         <mvc:message-converters>
+           <bean class="com.alibaba.fastjson.support.spring.FastJsonHttpMessageConverter">
+             <!--声明类型转换json  -->
+             <property name="supportedMediaTypes">
+               <list>
+                   <value>application/json</value>
+               </list>
+             </property>
+           </bean>
+         </mvc:message-converters>
+     </mvc:annotation-driven>
+      <!-- 视图解析器 -->
+	<bean
+		class="org.springframework.web.servlet.view.InternalResourceViewResolver">
+		<!-- 前缀 -->
+		<property name="prefix" value="/"></property>
+		<!-- 后缀 -->
+		<property name="suffix" value=".jsp"></property>
+	</bean>
+	<!--  
+	   在项目中 自动添加一个 映射{"/**" : DefaultServletHttpRequestHandler}
+         请求进入前端后，会先匹配自定义的Handler，如果没有匹配的则进入DefaultServletHttpRequestHandler。
+         DefaultServletHttpRequestHandler会将请求转发给Tomcat中名为"default"的servlet。
+         最终实现了静态资源的访问
+	-->
+	<mvc:default-servlet-handler/>
+	<!-- 异常处理视图  -->
+    <bean class="com.ahf.shiro.exception.MyException"></bean>
+    
+    
+    <!-- shiro的注解开发 -->
+    <!--开启shiro的注解，调用工厂中的Initializable类型的组件的init方法  -->
+    <bean id="" class="org.apache.shiro.spring.LifecycleBeanPostProcessor"/>
+    <!--springmvc工厂启动时，如果发现此了此配置，会在当前工厂中，多创建一个Bean(后置处理器)，用来定制代理  -->
+     <aop:config></aop:config>
+      <!-- 在此bean的构建过程中，对注解进行再封装，初始化了一些额外功能和piontcut(切入点)
+     interceptors.add(new RoleAnnotationMethodInterceptor(resolver));
+                          @RequiresRoles
+     interceptors.add(new PermissionAnnotationMethodInterceptor(resolver));
+                          @RequiresPermissions
+     interceptors.add(new AuthenticatedAnnotationMethodInterceptor(resolver));
+                          @RequiresAuthentication
+     interceptors.add(new UserAnnotationMethodInterceptor(resolver));
+                          @RequiresUser
+     interceptors.add(new GuestAnnotationMethodInterceptor(resolver));
+                          @RequiresGuest
+-->
+    <bean class="org.apache.shiro.spring.security.interceptor.AuthorizationAttributeSourceAdvisor">
+        <property name="securityManager" ref="securityManager"/>
+    </bean>
+   
+</beans>

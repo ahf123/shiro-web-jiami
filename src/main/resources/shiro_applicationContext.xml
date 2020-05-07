@@ -1,0 +1,142 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- dtd : document type definition xxx.dtd xxx2.dtd xsd : xml schema definition 
+	xxx.xsd xxx2.xsd 文档约束：标签，顺序，层级，属性 -->
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:context="http://www.springframework.org/schema/context"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+		http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context-4.3.xsd">
+
+
+	<!--shiro配置 -->
+	<!--配置Realm -->
+	<bean id="myRealm" class="com.ahf.shiro.realm.MyRealm">
+		<!-- 查询用户信息使用到的bean:service ,dao -->
+		<property name="userService" ref="userServiceImpl"></property>
+		<property name="roleService" ref="roleServiceImpl"></property>
+		<property name="permssionService" ref="permssionServiceImpl"></property>
+
+		<!-- 密码比对器 -->
+		<property name="credentialsMatcher">
+			<bean
+				class="org.apache.shiro.authc.credential.HashedCredentialsMatcher">
+				<!--加密算法 :value是常量值，底层做了设置 -->
+				<property name="hashAlgorithmName" value="sha-256" />
+				<!--加密迭代次数 -->
+				<property name="hashIterations" value="10000" />
+				<!-- true means hex encoded, false means base64 encoded -->
+				<property name="storedCredentialsHexEncoded" value="false"/>
+			</bean>
+		</property>
+	</bean>
+
+
+	<!--声明SecurityManager :核心控制器 主要使用底层默认使用的 DefaultWebSecurityManager -->
+	<bean id="securityManager"
+		class="org.apache.shiro.web.mgt.DefaultWebSecurityManager">
+		<!--添加realm -->
+		<property name="realm" ref="myRealm" />
+		<!-- CookieRememberMeManager注入到SecurityManager SecurityManager在处理login时，如果login成功，则会通过rememberMeManager作记住我 -->
+		<property name="rememberMeManager" ref="rememberMeManager" />
+
+		<!--sessionManager关联到SecurityManager -->
+		<property name="sessionManager" ref="sessionManager" />
+	</bean>
+
+    
+	<!-- shiroFilter -->
+	<!--生产SpringShiroFilter (持有shiro的过滤相关规则，可进行请求的过滤校验，校验请求是否合法) -->
+	<bean id="shiroFilter"
+		class="org.apache.shiro.spring.web.ShiroFilterFactoryBean">
+		<!--注入核心对象,过滤链依赖核心对象处理，同时如果使用注解代理，则过滤链无效 -->
+		<property name="securityManager" ref="securityManager" />
+		<!--未登录、没权限的跳转路径 -->
+		<property name="loginUrl" value="/user/login" />
+		<property name="unauthorizedUrl" value="/user/perms/error" />
+		<!-- 过滤链 -->
+		<property name="filterChainDefinitions">
+			<value>
+			 <!--  
+        	配置哪些页面需要受保护. 
+        	以及访问这些页面需要的权限. 
+        	1). anon 可以被匿名访问
+        	2). authc 必须认证(即登录)后才可能访问的页面. 
+        	3). logout 登出.
+        	4). roles 角色过滤器
+        -->
+				/user/all = authc,perms["user:query","user:delete"]
+				/user/logout = logout
+			</value>
+		</property>
+		
+	</bean>
+	
+	
+
+	<!-- rememberme -->
+	<bean id="rememberMeCookie"
+		class="org.apache.shiro.web.servlet.SimpleCookie">
+		<!-- rememberMe是cookie值中的key,value是用户名的密文 cookie["rememberMe":"deleteMe"]此cookie每次登陆后都会写出，用于清除之前的cookie 
+			cookie["rememberMe":"username的密文"] 此cookie也会在登录后写出，用于记录最新的username （ops: 
+			如上设计，既能保证每次登录后重新记录cookie，也能保证切换账号时，记录最新账号） -->
+		<!-- 保存到浏览器在名字 -->
+		<property name="name" value="rememberMe" />
+		<!--cookie只在http请求中可用，那么通过js脚本将无法读取到cookie信息，有效防止cookie被窃取 -->
+		<property name="httpOnly" value="true" />
+		<!--cookie的生命周期，单位：秒 -->
+		<property name="maxAge" value="2592000" />
+	</bean>
+	<bean id="rememberMeManager"
+		class="org.apache.shiro.web.mgt.CookieRememberMeManager">
+		<!-- 对cookie的value加密的密钥 建议每个项目都不一样 加密方式AES(对称加密) 密钥生成 : [ keyGenerator 
+			keygen = keyGenerator.getInstance("AES"); Secretkey deskey = keygen.generatekey(); 
+			System.out.println(Base64.encodeToString(deskey.gteEncoded()));] Spel ； Spring 
+			Expression language #{表达式} #{T()} <property name="cipherKey" value="#{T(org.apache.shiro.codec.Base64),decode('c+3hFGPjbgzGdrC+MHgoRQ==')}"/> 
+			此配置可以省略，COokieRemenberMeManager自动完成密钥生成 -->
+		<property name="cookie" ref="rememberMeCookie" />
+	</bean>
+
+
+	<!-- 定制session -->
+	<!--增加session管理相关配置 -->
+	<!-- 会话Cookie模板，默认可省 -->
+	<bean id="sessionIdCookie"
+		class="org.apache.shiro.web.servlet.SimpleCookie">
+		<!--cookie的key="sid" -->
+		<property name="name" value="JSESSIONNID" />
+		<!--只允许http请求访问cookie -->
+		<property name="httpOnly" value="true" />
+		<!-- cookie过期时间 ，-1 存活一个会话，单位秒，默认-1 -->
+		<property name="maxAge" value="-1" />
+	</bean>
+
+
+	<!--session管理器 -->
+	<bean id="sessionManager"
+		class="org.apache.shiro.web.session.mgt.DefaultWebSessionManager">
+		<!--默认值和配置中给出的一致，所bean :sessionIdCookie可省略 -->
+		<property name="sessionIdCookie" ref="sessionIdCookie" />
+		<!--session全局超时时间，单位：毫秒，30分钟，默认值为1800000 -->
+		<property name="globalSessionTimeout" value="1800000" />
+
+		<!-- 可以定制多个监听 -->
+		<property name="sessionListeners">
+			<list>
+				<bean class="com.ahf.shiro.session.MySessionListener"/>
+			</list>
+		</property>
+		<!-- sessionManager 默认开启session检测机制 -->
+		<!-- 开启检测器，默认开启 -->
+		<property name="sessionValidationSchedulerEnabled"
+			value="true" />
+		<!-- 检测运行间隔，单位：毫秒 默认1小时 //检测到过期后，会直接将session删除
+		    protected void afterExpired(Session session){
+		       if(isDeleteInvalidSession（）){
+		          delete(session)
+		       }
+		    }
+		 
+		 -->
+		<property name="sessionValidationInterval" value="360000"/>
+	</bean>
+</beans>
